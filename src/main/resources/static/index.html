@@ -1,0 +1,809 @@
+<!DOCTYPE html>
+<html lang="pt-BR" class="dark">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>CineFy - Catálogo de Filmes</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        cinema: {
+                            black:   '#0a0a0a',
+                            dark:    '#111111',
+                            card:    '#1a1a1a',
+                            border:  '#2c2c2c',
+                            gold:    '#d4af37',
+                            goldSoft:'#f0d060',
+                            red:     '#c41e3a',
+                            redDark: '#8b1529',
+                            cream:   '#f5f0e6',
+                            muted:   '#8a8a8a',
+                        }
+                    },
+                    fontFamily: {
+                        display: ['Cinzel', 'serif'],
+                        body: ['Inter', 'system-ui', 'sans-serif'],
+                    },
+                    boxShadow: {
+                        gold: '0 0 24px -6px rgba(212, 175, 55, 0.4)',
+                        card: '0 10px 40px -12px rgba(0,0,0,0.7)',
+                    }
+                }
+            }
+        };
+    </script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@500;600;700;800&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <script src="https://unpkg.com/react@18/umd/react.development.js" crossorigin></script>
+    <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js" crossorigin></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <style>
+        body {
+            font-family: 'Inter', system-ui, sans-serif;
+            background: #0a0a0a;
+            color: #f5f0e6;
+        }
+        .font-display { font-family: 'Cinzel', serif; }
+        .hero-cinema {
+            background: linear-gradient(155deg, #1a0808 0%, #0a0a0a 45%, #111 100%);
+            position: relative;
+            overflow: hidden;
+        }
+        .hero-cinema::before {
+            content: '';
+            position: absolute;
+            inset: 0;
+            background:
+                    radial-gradient(ellipse at 75% 15%, rgba(212,175,55,0.14) 0%, transparent 50%),
+                    radial-gradient(ellipse at 15% 85%, rgba(196,30,58,0.1) 0%, transparent 45%);
+            pointer-events: none;
+        }
+        .film-strip {
+            background: repeating-linear-gradient(
+                    90deg,
+                    #1a1a1a 0px,
+                    #1a1a1a 14px,
+                    #0a0a0a 14px,
+                    #0a0a0a 20px
+            );
+        }
+        .spotlight {
+            box-shadow: 0 0 40px -10px rgba(212, 175, 55, 0.22);
+        }
+        .card-hover { transition: all 0.25s ease; }
+        .card-hover:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 14px 40px -12px rgba(212, 175, 55, 0.18);
+            border-color: rgba(212, 175, 55, 0.4);
+        }
+        .modal-overlay {
+            background: rgba(0, 0, 0, 0.8);
+            backdrop-filter: blur(10px);
+        }
+        .btn-gold {
+            background: linear-gradient(135deg, #d4af37 0%, #b8962e 100%);
+            color: #0a0a0a;
+        }
+        .btn-gold:hover {
+            background: linear-gradient(135deg, #f0d060 0%, #d4af37 100%);
+        }
+    </style>
+</head>
+<body class="bg-cinema-black text-cinema-cream min-h-screen">
+<div id="root"></div>
+<script type="text/babel">
+    const { useState, useEffect, useMemo } = React;
+
+    const Icons = {
+        Clapper: ({ size = 24 }) => (
+            <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M4 11v8a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-8"/>
+                <path d="M4 11 8 4h8l4 7"/>
+                <path d="M8 4l2 7"/><path d="M14 4l-2 7"/><path d="M4 15h16"/>
+            </svg>
+        ),
+        Film: ({ size = 22 }) => (
+            <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
+                <rect x="2" y="2" width="20" height="20" rx="2.5"/>
+                <path d="M7 2v20M17 2v20M2 12h20M2 7h5M2 17h5M17 7h5M17 17h5"/>
+            </svg>
+        ),
+        Home: ({ size = 20 }) => (
+            <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <path d="m3 10 9-7 9 7v10a1 1 0 0 1-1 1h-5v-7H9v7H4a1 1 0 0 1-1-1z"/>
+            </svg>
+        ),
+        Plus: ({ size = 18 }) => (
+            <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                <path d="M12 5v14M5 12h14"/>
+            </svg>
+        ),
+        Search: ({ size = 18 }) => (
+            <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <circle cx="11" cy="11" r="7"/><path d="m20 20-4-4"/>
+            </svg>
+        ),
+        Edit: ({ size = 16 }) => (
+            <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <path d="m15 5 4 4M4 20l4-.8L20 7a2.8 2.8 0 0 0-4-4L4 15z"/>
+            </svg>
+        ),
+        Trash: ({ size = 16 }) => (
+            <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <path d="M3 6h18M8 6V4h8v2m3 0-1 14H6L5 6m4 4v6m6-6v6"/>
+            </svg>
+        ),
+        Settings: ({ size = 16 }) => (
+            <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <circle cx="12" cy="12" r="3"/>
+                <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/>
+            </svg>
+        ),
+        Refresh: ({ size = 16 }) => (
+            <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <path d="M21 12a9 9 0 0 0-9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/>
+                <path d="M3 12a9 9 0 0 0 9 9 9.75 9.75 0 0 0 6.74-2.74L21 16"/><path d="M16 16h5v5"/>
+            </svg>
+        ),
+        Star: ({ size = 14 }) => (
+            <svg width={size} height={size} viewBox="0 0 24 24" fill="currentColor">
+                <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/>
+            </svg>
+        )
+    };
+
+    const EMPTY = {
+        titulo: '', genero: 'ACAO', diretor: '', ano: '',
+        duracao: '', classificacao: 'LIVRE', nota: '',
+        sinopse: '', assistido: false
+    };
+
+    function App() {
+        const [tela, setTela] = useState('principal');
+        const [apiUrl, setApiUrl] = useState('http://localhost:8080/api/filmes');
+        const [urlEdit, setUrlEdit] = useState(apiUrl);
+        const [showConfig, setShowConfig] = useState(false);
+        const [statusApi, setStatusApi] = useState('carregando');
+        const [erroDetalhe, setErroDetalhe] = useState('');
+        const [filmes, setFilmes] = useState([]);
+        const [busca, setBusca] = useState('');
+        const [filtro, setFiltro] = useState('TODOS');
+        const [form, setForm] = useState(EMPTY);
+        const [editando, setEditando] = useState(null);
+        const [deletando, setDeletando] = useState(null);
+        const [toast, setToast] = useState(null);
+        const [carregando, setCarregando] = useState(false);
+
+        const avisar = (mensagem, tipo = 'info') => {
+            setToast({ mensagem, tipo });
+            setTimeout(() => setToast(null), 3800);
+        };
+
+        const request = async (path = '', options = {}) => {
+            const res = await fetch(`${apiUrl.replace(/\/$/, '')}${path}`, options);
+            if (!res.ok) throw new Error(`A API respondeu com status ${res.status}`);
+            if (res.status === 204) return null;
+            const text = await res.text();
+            return text ? JSON.parse(text) : null;
+        };
+
+        const carregarFilmes = async () => {
+            setCarregando(true);
+            setErroDetalhe('');
+            try {
+                const dados = await request();
+                setFilmes(Array.isArray(dados) ? dados : (dados ? [dados] : []));
+                setStatusApi('conectado');
+            } catch (e) {
+                setStatusApi('erro');
+                setErroDetalhe(e.message || 'Não foi possível conectar à API.');
+            } finally {
+                setCarregando(false);
+            }
+        };
+
+        useEffect(() => { carregarFilmes(); }, [apiUrl]);
+
+        const salvar = async (e) => {
+            e.preventDefault();
+            const dados = {
+                ...form,
+                ano: form.ano === '' ? null : Number(form.ano),
+                duracao: form.duracao === '' ? null : Number(form.duracao),
+                nota: form.nota === '' ? null : Number(form.nota)
+            };
+            try {
+                if (editando !== null) {
+                    await request('/' + editando, {
+                        method: 'PUT',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(dados)
+                    });
+                    avisar('Filme atualizado com sucesso!', 'sucesso');
+                } else {
+                    await request('', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(dados)
+                    });
+                    avisar('Filme cadastrado com sucesso!', 'sucesso');
+                }
+                setForm(EMPTY);
+                setEditando(null);
+                setTela('principal');
+                await carregarFilmes();
+            } catch (err) {
+                avisar(`Não foi possível salvar. ${err.message}`, 'erro');
+            }
+        };
+
+        const editar = (f) => {
+            setForm({
+                titulo: f.titulo || '',
+                genero: f.genero || 'ACAO',
+                diretor: f.diretor || '',
+                ano: f.ano ?? '',
+                duracao: f.duracao ?? '',
+                classificacao: f.classificacao || 'LIVRE',
+                nota: f.nota ?? '',
+                sinopse: f.sinopse || '',
+                assistido: !!f.assistido
+            });
+            setEditando(f.id);
+            setTela('cadastro');
+        };
+
+        const excluir = async (id) => {
+            try {
+                await request('/' + id, { method: 'DELETE' });
+                avisar('Filme excluído com sucesso!', 'sucesso');
+                setDeletando(null);
+                await carregarFilmes();
+            } catch (err) {
+                avisar(`Não foi possível excluir. ${err.message}`, 'erro');
+            }
+        };
+
+        const filtrados = useMemo(() => filmes.filter(f => {
+            const texto = [f.titulo, f.genero, f.diretor, f.sinopse].filter(Boolean).join(' ').toLowerCase();
+            return texto.includes(busca.toLowerCase()) && (filtro === 'TODOS' || f.genero === filtro);
+        }), [filmes, busca, filtro]);
+
+        const acao = filmes.filter(f => f.genero === 'ACAO').length;
+        const drama = filmes.filter(f => f.genero === 'DRAMA').length;
+
+        const field = 'w-full bg-cinema-dark border border-cinema-border rounded-lg px-4 py-3 text-sm text-cinema-cream placeholder:text-cinema-muted focus:outline-none focus:ring-1 focus:ring-cinema-gold/50 focus:border-cinema-gold/50 transition';
+        const label = 'block text-cinema-muted font-semibold mb-1.5 text-[10px] uppercase tracking-[0.15em]';
+
+        const generoLabel = {
+            ACAO: 'Ação', DRAMA: 'Drama', COMEDIA: 'Comédia', TERROR: 'Terror',
+            FICCAO: 'Ficção Científica', ROMANCE: 'Romance', ANIMACAO: 'Animação', OUTRO: 'Outro'
+        };
+
+        return (
+            <div className="flex min-h-screen bg-cinema-black">
+                {toast && (
+                    <div className={`fixed top-5 right-5 z-[70] px-5 py-3.5 rounded-xl text-sm font-semibold shadow-lg border ${
+                        toast.tipo === 'sucesso'
+                            ? 'bg-cinema-card text-cinema-gold border-cinema-gold/40'
+                            : toast.tipo === 'erro'
+                                ? 'bg-cinema-card text-cinema-red border-cinema-red/40'
+                                : 'bg-cinema-card text-cinema-cream border-cinema-border'
+                    }`}>
+                        {toast.mensagem}
+                    </div>
+                )}
+
+                <aside className="w-64 bg-cinema-dark border-r border-cinema-border p-5 hidden md:flex flex-col justify-between">
+                    <div className="space-y-8">
+                        <div className="flex items-center gap-3 px-1">
+                            <div className="w-10 h-10 rounded-lg bg-cinema-gold/10 text-cinema-gold flex items-center justify-center border border-cinema-gold/30">
+                                <Icons.Clapper size={22} />
+                            </div>
+                            <div>
+              <span className="text-xl font-display font-bold tracking-wide text-cinema-cream">
+                Cine<span className="text-cinema-gold">Fy</span>
+              </span>
+                                <p className="text-[10px] text-cinema-muted tracking-[0.2em] uppercase">Film Catalog</p>
+                            </div>
+                        </div>
+
+                        <nav className="space-y-1.5">
+                            <button
+                                onClick={() => setTela('principal')}
+                                className={`w-full flex items-center gap-3 px-3.5 py-3 rounded-lg text-sm font-semibold transition ${
+                                    tela === 'principal'
+                                        ? 'bg-cinema-gold/10 text-cinema-gold border border-cinema-gold/20'
+                                        : 'text-cinema-muted hover:bg-white/5 hover:text-cinema-cream border border-transparent'
+                                }`}
+                            >
+                                <Icons.Home /> Filmes em cartaz
+                            </button>
+                            <button
+                                onClick={() => { setForm(EMPTY); setEditando(null); setTela('cadastro'); }}
+                                className={`w-full flex items-center gap-3 px-3.5 py-3 rounded-lg text-sm font-semibold transition ${
+                                    tela === 'cadastro'
+                                        ? 'bg-cinema-gold/10 text-cinema-gold border border-cinema-gold/20'
+                                        : 'text-cinema-muted hover:bg-white/5 hover:text-cinema-cream border border-transparent'
+                                }`}
+                            >
+                                <Icons.Plus /> Cadastrar filme
+                            </button>
+                        </nav>
+                    </div>
+
+                    <div className="bg-cinema-black rounded-xl border border-cinema-border p-4">
+                        <span className="text-cinema-muted block text-[10px] uppercase font-bold tracking-[0.15em] mb-1.5">API Backend</span>
+                        <div className="text-[11px] font-mono text-cinema-muted/80 break-all mb-3 leading-relaxed">{apiUrl}</div>
+                        <div className="flex items-center justify-between gap-2">
+            <span className="flex items-center gap-2 text-xs font-medium">
+              <span className={`w-2 h-2 rounded-full ${
+                  statusApi === 'conectado' ? 'bg-emerald-500' :
+                      statusApi === 'carregando' ? 'bg-amber-400' : 'bg-cinema-red'
+              }`}></span>
+              <span className={statusApi === 'conectado' ? 'text-emerald-400' : statusApi === 'carregando' ? 'text-amber-400' : 'text-cinema-red'}>
+                {statusApi === 'conectado' ? 'Conectada' :
+                    statusApi === 'carregando' ? 'Conectando...' : 'Erro'}
+              </span>
+            </span>
+                            <button
+                                onClick={() => { setUrlEdit(apiUrl); setShowConfig(true); }}
+                                className="text-xs font-semibold text-cinema-gold hover:text-cinema-goldSoft flex items-center gap-1"
+                            >
+                                <Icons.Settings size={12} /> Alterar
+                            </button>
+                        </div>
+                    </div>
+                </aside>
+
+                <main className="flex-1 min-w-0">
+                    <header className="sticky top-0 z-30 bg-cinema-black/90 backdrop-blur-md border-b border-cinema-border px-5 md:px-8 py-4 flex items-center justify-between">
+                        <div className="flex items-center gap-3 md:hidden">
+                            <div className="w-9 h-9 rounded-lg bg-cinema-gold/10 text-cinema-gold flex items-center justify-center border border-cinema-gold/30">
+                                <Icons.Clapper size={18} />
+                            </div>
+                            <b className="text-lg font-display font-bold">Cine<span className="text-cinema-gold">Fy</span></b>
+                        </div>
+                        <div className="hidden md:flex items-center gap-2 text-xs font-medium text-cinema-muted tracking-wider uppercase">
+                            <Icons.Star size={12} className="text-cinema-gold" />
+                            Cinema / <span className="text-cinema-cream">{tela === 'cadastro' ? 'Cadastro' : 'Catálogo'}</span>
+                        </div>
+                        <div className="flex gap-2">
+                            <button
+                                onClick={() => carregarFilmes()}
+                                className="px-3.5 py-2 rounded-lg border border-cinema-border text-xs font-semibold text-cinema-muted hover:bg-white/5 hover:text-cinema-cream transition flex items-center gap-1.5"
+                            >
+                                <Icons.Refresh size={14} />
+                                {carregando ? 'Atualizando...' : 'Atualizar'}
+                            </button>
+                            <button
+                                onClick={() => { setForm(EMPTY); setEditando(null); setTela('cadastro'); }}
+                                className="flex items-center gap-2 px-4 py-2 rounded-lg btn-gold text-xs font-bold shadow-gold transition"
+                            >
+                                <Icons.Plus size={14} /> Novo filme
+                            </button>
+                        </div>
+                    </header>
+
+                    <div className="p-5 md:p-8 max-w-7xl mx-auto">
+                        {tela === 'principal' ? (
+                            <>
+                                <section className="hero-cinema rounded-2xl p-7 md:p-10 mb-8 border border-cinema-border relative">
+                                    <div className="relative z-10">
+                                        <div className="flex items-center gap-2 mb-4">
+                                            <span className="text-cinema-gold text-xs uppercase tracking-[0.25em] font-bold">Em cartaz</span>
+                                            <span className="w-8 h-px bg-cinema-gold/40"></span>
+                                        </div>
+                                        <h1 className="font-display text-3xl md:text-4xl lg:text-5xl font-bold tracking-tight mb-3 leading-tight">
+                                            Seu catálogo de <span className="text-cinema-gold">cinema.</span>
+                                        </h1>
+                                        <p className="text-cinema-muted max-w-xl text-sm leading-relaxed">
+                                            Organize, avalie e gerencie todos os filmes do seu acervo. Os dados são salvos diretamente na sua API.
+                                        </p>
+                                    </div>
+                                    <div className="absolute bottom-0 left-0 right-0 h-3 film-strip opacity-40"></div>
+                                </section>
+
+                                {statusApi === 'erro' && (
+                                    <div className="mb-6 rounded-xl border border-cinema-red/30 bg-cinema-red/10 p-5 text-sm">
+                                        <b className="text-cinema-red">Não foi possível conectar à API.</b>
+                                        <p className="text-cinema-muted mt-1">{erroDetalhe}</p>
+                                        <p className="text-cinema-muted/70 mt-1 text-xs">Confira a URL, se o backend está em execução e se o CORS está configurado.</p>
+                                        <button
+                                            onClick={() => { setUrlEdit(apiUrl); setShowConfig(true); }}
+                                            className="mt-3 text-cinema-gold font-semibold hover:underline text-sm"
+                                        >
+                                            Configurar endpoint
+                                        </button>
+                                    </div>
+                                )}
+
+                                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-8">
+                                    {[
+                                        { label: 'Total de filmes', value: filmes.length, accent: 'text-cinema-gold' },
+                                        { label: 'Ação', value: acao, accent: 'text-amber-400' },
+                                        { label: 'Drama', value: drama, accent: 'text-rose-400' },
+                                    ].map((stat, i) => (
+                                        <div key={i} className="bg-cinema-card border border-cinema-border rounded-xl p-5 spotlight">
+                                            <p className="text-cinema-muted text-[10px] font-bold uppercase tracking-[0.15em]">{stat.label}</p>
+                                            <p className={`text-3xl font-display font-bold mt-2 ${stat.accent}`}>{stat.value}</p>
+                                        </div>
+                                    ))}
+                                </div>
+
+                                <div className="flex flex-col md:flex-row gap-4 md:items-center md:justify-between mb-6">
+                                    <div>
+                                        <h2 className="font-display text-xl font-bold text-cinema-cream">Filmes cadastrados</h2>
+                                        <p className="text-cinema-muted text-xs mt-1">Registros retornados pela API REST</p>
+                                    </div>
+                                    <div className="flex flex-col sm:flex-row gap-2">
+                                        <div className="flex items-center gap-2 bg-cinema-card border border-cinema-border rounded-lg px-4">
+                                            <Icons.Search size={16} className="text-cinema-muted" />
+                                            <input
+                                                value={busca}
+                                                onChange={e => setBusca(e.target.value)}
+                                                placeholder="Buscar título, diretor..."
+                                                className="bg-transparent py-2.5 text-sm outline-none w-full sm:w-48 text-cinema-cream placeholder:text-cinema-muted"
+                                            />
+                                        </div>
+                                        <select
+                                            value={filtro}
+                                            onChange={e => setFiltro(e.target.value)}
+                                            className="bg-cinema-card border border-cinema-border rounded-lg px-4 py-2.5 text-sm outline-none text-cinema-cream"
+                                        >
+                                            <option value="TODOS">Todos os gêneros</option>
+                                            <option value="ACAO">Ação</option>
+                                            <option value="DRAMA">Drama</option>
+                                            <option value="COMEDIA">Comédia</option>
+                                            <option value="TERROR">Terror</option>
+                                            <option value="FICCAO">Ficção Científica</option>
+                                            <option value="ROMANCE">Romance</option>
+                                            <option value="ANIMACAO">Animação</option>
+                                            <option value="OUTRO">Outro</option>
+                                        </select>
+                                    </div>
+                                </div>
+
+                                {carregando && filmes.length === 0 ? (
+                                    <div className="text-center py-20 text-cinema-muted">Carregando filmes da API...</div>
+                                ) : filtrados.length === 0 ? (
+                                    <div className="bg-cinema-card border border-cinema-border rounded-2xl p-14 text-center">
+                                        <div className="w-16 h-16 mx-auto rounded-xl bg-cinema-gold/10 text-cinema-gold flex items-center justify-center mb-5 border border-cinema-gold/20">
+                                            <Icons.Film size={32} />
+                                        </div>
+                                        <h3 className="font-display font-bold text-lg text-cinema-cream">
+                                            {statusApi === 'erro' ? 'Não foi possível carregar os filmes' : 'Nenhum filme encontrado'}
+                                        </h3>
+                                        <p className="text-cinema-muted text-sm mt-2 max-w-sm mx-auto">
+                                            {statusApi === 'erro'
+                                                ? 'Verifique a conexão com o backend.'
+                                                : 'Cadastre o primeiro filme ou altere os filtros da busca.'}
+                                        </p>
+                                        <button
+                                            onClick={() => { setForm(EMPTY); setEditando(null); setTela('cadastro'); }}
+                                            className="mt-6 inline-flex items-center gap-2 rounded-lg btn-gold px-6 py-3 font-bold text-sm shadow-gold transition"
+                                        >
+                                            <Icons.Plus size={16} /> Cadastrar filme
+                                        </button>
+                                    </div>
+                                ) : (
+                                    <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-5">
+                                        {filtrados.map((f, i) => (
+                                            <article
+                                                key={f.id ?? i}
+                                                className="bg-cinema-card border border-cinema-border rounded-xl p-5 card-hover"
+                                            >
+                                                <div className="flex justify-between items-start gap-3">
+                                                    <div className="flex gap-3 min-w-0">
+                                                        <div className="w-12 h-12 shrink-0 rounded-lg bg-cinema-gold/10 text-cinema-gold flex items-center justify-center border border-cinema-gold/20">
+                                                            <Icons.Film size={22} />
+                                                        </div>
+                                                        <div className="min-w-0">
+                                                            <h3 className="font-display font-bold text-lg truncate text-cinema-cream">{f.titulo || 'Sem título'}</h3>
+                                                            <p className="text-cinema-muted text-xs mt-0.5">
+                                                                {generoLabel[f.genero] || f.genero || 'Gênero não informado'}
+                                                                {f.ano ? ` · ${f.ano}` : ''}
+                                                            </p>
+                                                        </div>
+                                                    </div>
+                                                    <span className="text-[10px] font-bold bg-cinema-gold/10 text-cinema-gold px-2.5 py-1 rounded-full border border-cinema-gold/20">
+                          #{f.id ?? '—'}
+                        </span>
+                                                </div>
+
+                                                <div className="grid grid-cols-2 gap-2.5 mt-5 text-xs">
+                                                    {[
+                                                        { label: 'Diretor', value: f.diretor || 'Não informado' },
+                                                        { label: 'Duração', value: f.duracao != null && f.duracao !== '' ? `${f.duracao} min` : 'Não informado' },
+                                                        { label: 'Classificação', value: f.classificacao || 'Não informado' },
+                                                        { label: 'Nota', value: f.nota != null && f.nota !== '' ? `${f.nota}/10` : 'Não avaliado' },
+                                                    ].map((item, idx) => (
+                                                        <div key={idx} className="bg-cinema-black/60 rounded-lg p-3 border border-cinema-border/50">
+                                                            <p className="text-cinema-muted mb-0.5 font-medium text-[10px] uppercase tracking-wider">{item.label}</p>
+                                                            <b className="text-cinema-cream">{item.value}</b>
+                                                        </div>
+                                                    ))}
+                                                </div>
+
+                                                {f.sinopse && (
+                                                    <p className="text-xs text-cinema-muted mt-4 line-clamp-2 leading-relaxed">{f.sinopse}</p>
+                                                )}
+
+                                                <div className="flex items-center gap-2 mt-3">
+                                                    {f.assistido && (
+                                                        <span className="text-[10px] font-bold bg-emerald-500/15 text-emerald-400 px-2 py-0.5 rounded-full border border-emerald-500/20">
+                            Assistido
+                          </span>
+                                                    )}
+                                                </div>
+
+                                                <div className="flex gap-2 mt-5 pt-4 border-t border-cinema-border">
+                                                    <button
+                                                        onClick={() => editar(f)}
+                                                        className="flex-1 flex items-center justify-center gap-2 rounded-lg border border-cinema-border py-2.5 text-xs font-semibold text-cinema-cream hover:bg-white/5 transition"
+                                                    >
+                                                        <Icons.Edit /> Editar
+                                                    </button>
+                                                    <button
+                                                        onClick={() => setDeletando(f.id)}
+                                                        className="flex-1 flex items-center justify-center gap-2 rounded-lg border border-cinema-red/30 text-cinema-red py-2.5 text-xs font-semibold hover:bg-cinema-red/10 transition"
+                                                    >
+                                                        <Icons.Trash /> Excluir
+                                                    </button>
+                                                </div>
+                                            </article>
+                                        ))}
+                                    </div>
+                                )}
+
+                                <p className="text-[10px] text-cinema-muted mt-8 text-center">
+                                    Endpoint: <code className="bg-cinema-card px-1.5 py-0.5 rounded text-cinema-gold/80">{apiUrl}</code> · GET, POST, PUT e DELETE
+                                </p>
+                            </>
+                        ) : (
+                            <section className="max-w-3xl mx-auto">
+                                <button
+                                    onClick={() => { setTela('principal'); setEditando(null); setForm(EMPTY); }}
+                                    className="text-cinema-muted hover:text-cinema-cream text-sm mb-5 font-medium transition"
+                                >
+                                    ← Voltar para o catálogo
+                                </button>
+
+                                <div className="bg-cinema-card border border-cinema-border rounded-2xl overflow-hidden">
+                                    <div className="hero-cinema p-6 md:p-8 border-b border-cinema-border">
+                                        <div className="flex items-center gap-2 mb-2">
+                                            <span className="text-cinema-gold text-xs uppercase tracking-[0.2em] font-bold">Ficha técnica</span>
+                                        </div>
+                                        <h1 className="font-display text-2xl md:text-3xl font-bold text-cinema-cream">
+                                            {editando !== null ? 'Editar filme' : 'Cadastrar novo filme'}
+                                        </h1>
+                                        <p className="text-cinema-muted text-sm mt-2">
+                                            Preencha as informações e salve diretamente na API.
+                                        </p>
+                                    </div>
+
+                                    <form onSubmit={salvar} className="p-6 md:p-8 space-y-5">
+                                        <div>
+                                            <label className={label}>Título do filme *</label>
+                                            <input
+                                                required
+                                                value={form.titulo}
+                                                onChange={e => setForm({ ...form, titulo: e.target.value })}
+                                                placeholder="Ex.: O Poderoso Chefão"
+                                                className={field}
+                                            />
+                                        </div>
+
+                                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                            <div>
+                                                <label className={label}>Gênero *</label>
+                                                <select
+                                                    required
+                                                    value={form.genero}
+                                                    onChange={e => setForm({ ...form, genero: e.target.value })}
+                                                    className={field}
+                                                >
+                                                    {[
+                                                        ['ACAO','Ação'],['DRAMA','Drama'],['COMEDIA','Comédia'],
+                                                        ['TERROR','Terror'],['FICCAO','Ficção Científica'],
+                                                        ['ROMANCE','Romance'],['ANIMACAO','Animação'],['OUTRO','Outro']
+                                                    ].map(([v,l]) => (
+                                                        <option key={v} value={v}>{l}</option>
+                                                    ))}
+                                                </select>
+                                            </div>
+                                            <div>
+                                                <label className={label}>Diretor</label>
+                                                <input
+                                                    value={form.diretor}
+                                                    onChange={e => setForm({ ...form, diretor: e.target.value })}
+                                                    placeholder="Ex.: Francis Ford Coppola"
+                                                    className={field}
+                                                />
+                                            </div>
+                                        </div>
+
+                                        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                                            <div>
+                                                <label className={label}>Ano</label>
+                                                <input
+                                                    type="number"
+                                                    min="1888"
+                                                    max="2030"
+                                                    value={form.ano}
+                                                    onChange={e => setForm({ ...form, ano: e.target.value })}
+                                                    placeholder="Ex.: 1972"
+                                                    className={field}
+                                                />
+                                            </div>
+                                            <div>
+                                                <label className={label}>Duração (min)</label>
+                                                <input
+                                                    type="number"
+                                                    min="1"
+                                                    value={form.duracao}
+                                                    onChange={e => setForm({ ...form, duracao: e.target.value })}
+                                                    placeholder="Ex.: 175"
+                                                    className={field}
+                                                />
+                                            </div>
+                                            <div>
+                                                <label className={label}>Nota (0-10)</label>
+                                                <input
+                                                    type="number"
+                                                    min="0"
+                                                    max="10"
+                                                    step="0.1"
+                                                    value={form.nota}
+                                                    onChange={e => setForm({ ...form, nota: e.target.value })}
+                                                    placeholder="Ex.: 9.2"
+                                                    className={field}
+                                                />
+                                            </div>
+                                        </div>
+
+                                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                            <div>
+                                                <label className={label}>Classificação</label>
+                                                <select
+                                                    value={form.classificacao}
+                                                    onChange={e => setForm({ ...form, classificacao: e.target.value })}
+                                                    className={field}
+                                                >
+                                                    <option value="LIVRE">Livre</option>
+                                                    <option value="10">10 anos</option>
+                                                    <option value="12">12 anos</option>
+                                                    <option value="14">14 anos</option>
+                                                    <option value="16">16 anos</option>
+                                                    <option value="18">18 anos</option>
+                                                </select>
+                                            </div>
+                                            <label className="flex items-center gap-3 bg-cinema-dark border border-cinema-border rounded-lg px-4 py-3 cursor-pointer mt-5 sm:mt-0">
+                                                <input
+                                                    type="checkbox"
+                                                    checked={form.assistido}
+                                                    onChange={e => setForm({ ...form, assistido: e.target.checked })}
+                                                    className="w-4 h-4 accent-cinema-gold"
+                                                />
+                                                <span>
+                        <b className="block text-sm text-cinema-cream">Já assisti</b>
+                        <small className="text-cinema-muted">Marque se já viu o filme</small>
+                      </span>
+                                            </label>
+                                        </div>
+
+                                        <div>
+                                            <label className={label}>Sinopse</label>
+                                            <textarea
+                                                rows="3"
+                                                value={form.sinopse}
+                                                onChange={e => setForm({ ...form, sinopse: e.target.value })}
+                                                placeholder="Resumo do filme..."
+                                                className={field}
+                                            ></textarea>
+                                        </div>
+
+                                        <div className="flex flex-col-reverse sm:flex-row gap-3 pt-3">
+                                            <button
+                                                type="button"
+                                                onClick={() => { setTela('principal'); setEditando(null); setForm(EMPTY); }}
+                                                className="flex-1 py-3 rounded-lg border border-cinema-border font-semibold text-sm text-cinema-muted hover:bg-white/5 transition"
+                                            >
+                                                Cancelar
+                                            </button>
+                                            <button
+                                                type="submit"
+                                                className="flex-1 py-3 rounded-lg btn-gold font-bold text-sm shadow-gold transition"
+                                            >
+                                                {editando !== null ? 'Salvar alterações (PUT)' : 'Cadastrar filme (POST)'}
+                                            </button>
+                                        </div>
+                                    </form>
+                                </div>
+                            </section>
+                        )}
+                    </div>
+                </main>
+
+                {showConfig && (
+                    <div className="fixed inset-0 z-50 modal-overlay flex items-center justify-center p-4">
+                        <div className="bg-cinema-card max-w-lg w-full p-6 rounded-2xl space-y-5 border border-cinema-border shadow-card">
+                            <div className="flex justify-between items-center">
+                                <h3 className="font-display font-bold text-lg text-cinema-cream">Configurar URL do Backend</h3>
+                                <button onClick={() => setShowConfig(false)} className="text-cinema-muted hover:text-cinema-cream text-2xl leading-none">&times;</button>
+                            </div>
+                            <p className="text-cinema-muted text-sm leading-relaxed">
+                                Informe a rota base da API de filmes. O front-end fará chamadas GET, POST, PUT e DELETE usando esse endpoint.
+                            </p>
+                            <div>
+                                <label className={label}>URL base da API</label>
+                                <input
+                                    value={urlEdit}
+                                    onChange={e => setUrlEdit(e.target.value)}
+                                    placeholder="http://localhost:8080/api/filmes"
+                                    className={field}
+                                />
+                            </div>
+                            <div className="flex gap-3">
+                                <button
+                                    onClick={() => setShowConfig(false)}
+                                    className="flex-1 py-3 rounded-lg border border-cinema-border font-semibold text-sm text-cinema-muted hover:bg-white/5"
+                                >
+                                    Cancelar
+                                </button>
+                                <button
+                                    onClick={() => {
+                                        if (urlEdit.trim()) {
+                                            setApiUrl(urlEdit.trim().replace(/\/$/, ''));
+                                            setShowConfig(false);
+                                        }
+                                    }}
+                                    className="flex-1 py-3 rounded-lg btn-gold font-bold text-sm shadow-gold"
+                                >
+                                    Salvar e testar conexão
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                )}
+
+                {deletando !== null && (
+                    <div className="fixed inset-0 z-50 modal-overlay flex items-center justify-center p-4">
+                        <div className="bg-cinema-card max-w-sm w-full p-6 rounded-2xl text-center space-y-5 border border-cinema-border shadow-card">
+                            <div className="mx-auto w-14 h-14 rounded-xl bg-cinema-red/10 text-cinema-red flex items-center justify-center border border-cinema-red/20">
+                                <Icons.Trash size={24} />
+                            </div>
+                            <h3 className="font-display font-bold text-lg text-cinema-cream">Excluir este filme?</h3>
+                            <p className="text-cinema-muted text-sm">
+                                A exclusão enviará <code className="text-cinema-red bg-cinema-red/10 px-1.5 py-0.5 rounded text-xs">DELETE {apiUrl}/{deletando}</code> para sua API.
+                            </p>
+                            <div className="flex gap-3">
+                                <button
+                                    onClick={() => setDeletando(null)}
+                                    className="flex-1 py-3 rounded-lg bg-cinema-dark border border-cinema-border font-semibold text-sm text-cinema-cream hover:bg-white/5 transition"
+                                >
+                                    Cancelar
+                                </button>
+                                <button
+                                    onClick={() => excluir(deletando)}
+                                    className="flex-1 py-3 rounded-lg bg-cinema-red hover:bg-cinema-redDark text-white font-bold text-sm transition"
+                                >
+                                    Excluir
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                )}
+            </div>
+        );
+    }
+
+    ReactDOM.createRoot(document.getElementById('root')).render(<App />);
+</script>
+</body>
+</html>
